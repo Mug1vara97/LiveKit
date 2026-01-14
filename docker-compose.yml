@@ -10,7 +10,7 @@ services:
       - "50000-50100:50000-50100/tcp"
     environment:
       LIVEKIT_KEYS: "devkey: secret"
-      LIVEKIT_CONFIG: /etc/livekit.yaml
+      LIVEKIT_CONFIG_FILE: /etc/livekit.yaml
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     networks:
@@ -42,7 +42,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - client
