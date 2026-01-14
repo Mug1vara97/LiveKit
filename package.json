@@ -1,0 +1,20 @@
+{
+  "name": "livekit-voice",
+  "version": "1.0.0",
+  "description": "Voice chat application with LiveKit",
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "keywords": [
+    "livekit",
+    "webrtc",
+    "voice-chat",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT"
+}
