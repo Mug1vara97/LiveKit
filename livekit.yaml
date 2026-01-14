@@ -4,9 +4,12 @@ rtc:
   port_range_start: 50000
   port_range_end: 50100
   use_external_ip: true
+  # Explicitly set external IP if behind NAT
+  # Get your server's public IP with: curl ifconfig.me
+  # external_ip: "2.59.41.26"
   stun_servers:
     - stun:185.119.59.23:3478
-    - stun:stun.l.google.com:19302
+    # - stun:stun.l.google.com:19302
   # TURN servers configuration
   turn_servers:
     - host: 185.119.59.23
