@@ -42,26 +42,51 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL || 'ws://localhost:7880';
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || 'devkey';
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || 'secret';
 
+// Log LiveKit configuration (without exposing full secret)
+console.log('LiveKit configuration:', {
+    url: LIVEKIT_URL,
+    apiKey: LIVEKIT_API_KEY,
+    secretLength: LIVEKIT_API_SECRET?.length || 0,
+    secretPreview: LIVEKIT_API_SECRET ? LIVEKIT_API_SECRET.substring(0, 10) + '...' : 'missing'
+});
+
 // Store active rooms and peers
 const rooms = new Map();
 const peers = new Map();
 
 // Generate access token for LiveKit
-function generateToken(roomName, participantName, identity) {
-    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
-        identity: identity || participantName,
-        name: participantName,
-    });
+async function generateToken(roomName, participantName, identity) {
+    try {
+        // Validate API key and secret
+        if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+            throw new Error('LiveKit API key or secret is missing');
+        }
+        
+        const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+            identity: identity || participantName,
+            name: participantName,
+        });
 
-    at.addGrant({
-        room: roomName,
-        roomJoin: true,
-        canPublish: true,
-        canSubscribe: true,
-        canPublishData: true,
-    });
+        at.addGrant({
+            room: roomName,
+            roomJoin: true,
+            canPublish: true,
+            canSubscribe: true,
+            canPublishData: true,
+        });
 
-    return at.toJwt();
+        // toJwt() returns a Promise in SDK v2.x+
+        const jwt = await at.toJwt();
+        
+        if (!jwt || typeof jwt !== 'string') {
+            throw new Error('Failed to generate JWT token');
+        }
+        
+        return jwt;
+    } catch (error) {
+        console.error('Error generating LiveKit token:', error);
+        throw error;
+    }
 }
 
 io.on('connection', (socket) => {
@@ -161,8 +186,15 @@ io.on('connection', (socket) => {
                 }
             });
 
-            // Generate LiveKit token
-            const token = generateToken(roomId, name, socket.id);
+            // Generate LiveKit token (async in SDK v2.x+)
+            const token = await generateToken(roomId, name, socket.id);
+            
+            // Debug: log token info
+            console.log(`Generated token for ${name} in room ${roomId}:`, {
+                tokenType: typeof token,
+                tokenLength: token?.length,
+                tokenPreview: token ? token.substring(0, 20) + '...' : 'null'
+            });
 
             // Notify other peers
             socket.to(roomId).emit('peerJoined', {
@@ -179,11 +211,20 @@ io.on('connection', (socket) => {
             // Note: LiveKit client will add /rtc path automatically
             const wsUrl = process.env.LIVEKIT_EXTERNAL_URL || 'wss://whithin.ru';
 
-            callback({
-                token,
+            const response = {
+                token: token,
                 url: wsUrl,
-                existingPeers
+                existingPeers: existingPeers
+            };
+            
+            console.log('Sending response to client:', {
+                hasToken: !!response.token,
+                tokenType: typeof response.token,
+                url: response.url,
+                peersCount: response.existingPeers.length
             });
+
+            callback(response);
 
         } catch (error) {
             console.error('Error in join:', error);

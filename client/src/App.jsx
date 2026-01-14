@@ -362,6 +362,15 @@ function App() {
       // Get token from server
       const response = await new Promise((resolve, reject) => {
         socket.emit('join', { roomId: roomName, name: userName }, (data) => {
+          console.log('Received response from server:', {
+            hasData: !!data,
+            dataKeys: data ? Object.keys(data) : [],
+            tokenType: data?.token ? typeof data.token : 'undefined',
+            tokenValue: data?.token ? (typeof data.token === 'string' ? data.token.substring(0, 30) + '...' : String(data.token)) : 'missing',
+            url: data?.url,
+            hasError: !!data?.error
+          });
+          
           if (data.error) {
             reject(new Error(data.error));
           } else {
@@ -370,10 +379,24 @@ function App() {
         });
       });
 
+      console.log('Response parsed:', {
+        hasToken: !!response.token,
+        tokenType: typeof response.token,
+        tokenValue: response.token ? (typeof response.token === 'string' ? response.token.substring(0, 30) + '...' : String(response.token)) : 'missing',
+        url: response.url,
+        peersCount: response.existingPeers?.length
+      });
+
       const { token, url, existingPeers } = response;
 
       // Ensure token is a string
       if (!token || typeof token !== 'string') {
+        console.error('Token validation failed:', {
+          token,
+          tokenType: typeof token,
+          tokenIsNull: token === null,
+          tokenIsUndefined: token === undefined
+        });
         throw new Error('Invalid token received from server');
       }
 

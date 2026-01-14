@@ -8,7 +8,7 @@ const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || 'devkey';
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || 'secret';
 
 // Generate access token for LiveKit
-function generateToken(roomName, participantName, identity) {
+async function generateToken(roomName, participantName, identity) {
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
         identity: identity || participantName,
         name: participantName,
@@ -22,11 +22,12 @@ function generateToken(roomName, participantName, identity) {
         canPublishData: true,
     });
 
-    return at.toJwt();
+    // toJwt() returns a Promise in SDK v2.x+
+    return await at.toJwt();
 }
 
 // Token endpoint for mobile apps
-router.post('/token', (req, res) => {
+router.post('/token', async (req, res) => {
     try {
         const { roomId, name } = req.body;
 
@@ -34,7 +35,7 @@ router.post('/token', (req, res) => {
             return res.status(400).json({ error: 'roomId and name are required' });
         }
 
-        const token = generateToken(roomId, name, req.body.identity || name);
+        const token = await generateToken(roomId, name, req.body.identity || name);
 
         // Return external WebSocket URL for client (through nginx proxy)
         // Internal URL is ws://livekit:7880, external is wss://whithin.ru
