@@ -8,8 +8,8 @@ services:
       - "7881"
       - "50000-50100"
     environment:
-      - LIVEKIT_KEYS=devkey: secret
-      - LIVEKIT_CONFIG=/etc/livekit.yaml
+      LIVEKIT_KEYS: "devkey: secret"
+      LIVEKIT_CONFIG: /etc/livekit.yaml
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     networks:
