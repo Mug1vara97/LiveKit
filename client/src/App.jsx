@@ -206,6 +206,7 @@ function App() {
   const videoRefs = useRef(new Map());
   const audioRefs = useRef(new Map());
   const screenShareRef = useRef(null);
+  const localVideoRef = useRef(null);
 
   // Initialize socket connection
   useEffect(() => {
@@ -239,6 +240,14 @@ function App() {
         const newMap = new Map(prev);
         newMap.set(participant.identity, participant);
         return newMap;
+      });
+      
+      // Subscribe to all published tracks of the new participant
+      participant.trackPublications.forEach((publication) => {
+        if ((publication.kind === 'audio' || publication.kind === 'video') && !publication.isSubscribed && publication.trackSid) {
+          participant.setSubscribed(publication.trackSid, true);
+          console.log('Subscribing to new participant track:', publication.kind, publication.trackSid);
+        }
       });
     };
 
@@ -325,9 +334,24 @@ function App() {
     };
 
     const handleLocalTrackPublished = (publication, participant) => {
-      console.log('Local track published:', publication.kind);
-      if (publication.kind === 'video' && publication.source === 'screen_share') {
-        setIsScreenSharing(true);
+      console.log('Local track published:', publication.kind, publication.source);
+      if (publication.kind === 'video') {
+        if (publication.source === 'screen_share') {
+          setIsScreenSharing(true);
+        } else if (publication.track) {
+          // Handle local camera video
+          const track = publication.track;
+          const element = document.createElement('video');
+          element.autoplay = true;
+          element.playsInline = true;
+          element.muted = true; // Mute local video to avoid feedback
+          localVideoRef.current = element;
+          const container = document.getElementById('local-video');
+          if (container) {
+            container.appendChild(element);
+            element.srcObject = new MediaStream([track.mediaStreamTrack]);
+          }
+        }
       }
     };
 
@@ -412,12 +436,37 @@ function App() {
       setLocalParticipant(newRoom.localParticipant);
       setIsConnected(true);
 
-      // Add existing peers
-      const peersMap = new Map();
-      existingPeers.forEach((peer) => {
-        // Peers will be added when they connect
+      // Add existing remote participants and subscribe to their tracks
+      const participantsMap = new Map();
+      newRoom.remoteParticipants.forEach((participant) => {
+        console.log('Found existing participant:', participant.identity);
+        participantsMap.set(participant.identity, participant);
+        
+        // Subscribe to all published tracks of existing participants
+        participant.trackPublications.forEach((publication) => {
+          if (publication.kind === 'audio' || publication.kind === 'video') {
+            // If track is already subscribed, handle it immediately
+            if (publication.isSubscribed && publication.track) {
+              const track = publication.track;
+              console.log('Existing participant has subscribed track:', publication.kind, participant.identity);
+              
+              // Attach audio track immediately
+              if (track.kind === 'audio') {
+                const element = document.createElement('audio');
+                element.autoplay = true;
+                audioRefs.current.set(participant.identity, element);
+                element.srcObject = new MediaStream([track.mediaStreamTrack]);
+                console.log('Attached existing audio track for:', participant.identity);
+              }
+            } else if (publication.trackSid) {
+              // Subscribe to the track if not already subscribed
+              participant.setSubscribed(publication.trackSid, true);
+              console.log('Subscribing to existing track:', publication.kind, publication.trackSid);
+            }
+          }
+        });
       });
-      setParticipants(peersMap);
+      setParticipants(participantsMap);
 
       // Enable camera and microphone
       await newRoom.localParticipant.enableCameraAndMicrophone();
@@ -451,6 +500,12 @@ function App() {
 
       if (screenShareRef.current) {
         screenShareRef.current.srcObject = null;
+      }
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+        localVideoRef.current.remove();
+        localVideoRef.current = null;
       }
     }
   }, [room]);
@@ -574,41 +629,193 @@ function App() {
         )}
 
         <Box sx={styles.videoGrid}>
-          {Array.from(participants.values()).map((participant) => (
+          {/* Local participant */}
+          {localParticipant && (
             <Paper
-              key={participant.identity}
+              key={localParticipant.identity}
               sx={styles.videoItem}
-              id={`video-container-${participant.identity}`}
             >
-              <Box
-                id={`video-${participant.identity}`}
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: '8px',
-                  left: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <Box sx={styles.userAvatar}>
-                  {getInitials(participant.name || participant.identity)}
-                </Box>
-                <Typography sx={styles.userName}>
-                  {participant.name || participant.identity}
-                </Typography>
-              </Box>
+              {(() => {
+                const hasVideo = localVideoRef.current !== null;
+                
+                return hasVideo ? (
+                  <Box
+                    id="local-video"
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  />
+                ) : (
+                  <div style={{ 
+                    position: 'relative', 
+                    width: '100%', 
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: '#2B2D31'
+                  }}>
+                    <Box sx={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      backgroundColor: '#404249',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      fontSize: '32px',
+                      fontWeight: 500,
+                      marginBottom: '12px'
+                    }}>
+                      {getInitials(userName || localParticipant.name || localParticipant.identity)}
+                    </Box>
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        left: '8px',
+                        right: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      }}
+                    >
+                      {isMuted ? (
+                        <MicOff sx={{ fontSize: 16, color: '#ed4245' }} />
+                      ) : (
+                        <Mic sx={{ fontSize: 16, color: '#B5BAC1' }} />
+                      )}
+                      <Typography sx={{
+                        color: '#ffffff',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                      }}>
+                        {userName || localParticipant.name || localParticipant.identity} (You)
+                      </Typography>
+                    </Box>
+                  </div>
+                );
+              })()}
             </Paper>
-          ))}
+          )}
+          
+          {/* Remote participants */}
+          {Array.from(participants.values()).map((participant) => {
+            // Check if participant has video track
+            const hasVideo = videoRefs.current.has(participant.identity);
+            
+            return (
+              <Paper
+                key={participant.identity}
+                sx={styles.videoItem}
+                id={`video-container-${participant.identity}`}
+              >
+                {hasVideo && videoElement ? (
+                  <Box
+                    id={`video-${participant.identity}`}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  />
+                ) : (
+                  <div style={{ 
+                    position: 'relative', 
+                    width: '100%', 
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: '#2B2D31'
+                  }}>
+                    <Box sx={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      backgroundColor: '#404249',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      fontSize: '32px',
+                      fontWeight: 500,
+                      marginBottom: '12px'
+                    }}>
+                      {getInitials(participant.name || participant.identity)}
+                    </Box>
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        left: '8px',
+                        right: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      }}
+                    >
+                      {participant.isMuted ? (
+                        <MicOff sx={{ fontSize: 16, color: '#ed4245' }} />
+                      ) : (
+                        <Mic sx={{ fontSize: 16, color: '#B5BAC1' }} />
+                      )}
+                      <Typography sx={{
+                        color: '#ffffff',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                      }}>
+                        {participant.name || participant.identity}
+                      </Typography>
+                    </Box>
+                  </div>
+                )}
+                {hasVideo && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      left: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    }}
+                  >
+                    {participant.isMuted ? (
+                      <MicOff sx={{ fontSize: 16, color: '#ed4245' }} />
+                    ) : (
+                      <Mic sx={{ fontSize: 16, color: '#B5BAC1' }} />
+                    )}
+                    <Typography sx={{
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                    }}>
+                      {participant.name || participant.identity}
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+            );
+          })}
         </Box>
       </Container>
 
