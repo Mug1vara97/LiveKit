@@ -24,7 +24,8 @@ import {
   ScreenShare,
   StopScreenShare,
 } from '@mui/icons-material';
-import { Room, RoomEvent, RemoteParticipant, LocalParticipant, RoomOptions } from '@livekit/client';
+import { Room, RoomEvent } from 'livekit-client';
+import '@livekit/components-styles';
 import { io } from 'socket.io-client';
 import './App.css';
 

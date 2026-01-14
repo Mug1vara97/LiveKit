@@ -9,7 +9,7 @@ export default defineConfig({
     host: true
   },
   optimizeDeps: {
-    exclude: ['@livekit/client']
+    exclude: ['livekit-client']
   },
   build: {
     target: 'esnext',
