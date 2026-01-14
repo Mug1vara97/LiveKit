@@ -809,11 +809,17 @@ function App() {
       });
       
       // Initialize states for new participant
-      // Get initial mute state from LiveKit
-      const isMuted = !participant.isMicrophoneEnabled;
+      // Determine initial mute state: 
+      // - If isMicrophoneEnabled is explicitly false, participant is muted
+      // - Otherwise, default to unmuted (microphone is enabled by default)
+      // We'll update this state when TrackMuted/TrackUnmuted events fire
+      const initialMutedState = participant.isMicrophoneEnabled === false || 
+                                 (participant.audioTrackPublications.length > 0 && 
+                                  participant.audioTrackPublications.every(pub => pub.isMuted));
+      
       setVolumes(prev => {
         const newVolumes = new Map(prev);
-        newVolumes.set(participant.identity, isMuted ? 0 : 100);
+        newVolumes.set(participant.identity, initialMutedState ? 0 : 100);
         return newVolumes;
       });
       
@@ -831,12 +837,9 @@ function App() {
       
       setIndividualMutedPeers(prev => {
         const newMap = new Map(prev);
-        newMap.set(participant.identity, isMuted);
+        newMap.set(participant.identity, initialMutedState);
         return newMap;
       });
-      
-      // Note: Microphone state changes are handled via TrackMuted/TrackUnmuted events
-      // at the room level, so we don't need a separate listener here
       
       // Subscribe to all published tracks of the new participant immediately
       // This ensures all existing participants can see/hear the new participant
@@ -879,20 +882,6 @@ function App() {
               // If setSubscribed is not available, LiveKit will auto-subscribe
               console.log('Track will be auto-subscribed:', publication.kind, publication.trackSid);
             }
-          }
-        }
-      });
-      
-      // Also subscribe to tracks that may be published later (e.g., after microphone/camera is enabled)
-      participant.on('trackPublished', (publication) => {
-        if ((publication.kind === 'audio' || publication.kind === 'video') && publication.trackSid) {
-          // In LiveKit JS SDK, subscription is usually automatic, but we can set it explicitly
-          if (publication.setSubscribed) {
-            publication.setSubscribed(true);
-            console.log('Subscribing to newly published track:', publication.kind, publication.trackSid);
-          } else {
-            // If setSubscribed is not available, LiveKit will auto-subscribe
-            console.log('Track will be auto-subscribed:', publication.kind, publication.trackSid);
           }
         }
       });
@@ -1221,6 +1210,12 @@ function App() {
       // Create LiveKit room with STUN/TURN configuration
       const roomOptions = getRoomOptions();
       const newRoom = new Room(roomOptions);
+      
+      // Increase max listeners to prevent memory leak warnings
+      // This is needed because we add listeners for each participant
+      if (newRoom.setMaxListeners) {
+        newRoom.setMaxListeners(50);
+      }
       // Use the WebSocket URL from server or fallback to default
       const wsUrl = url || LIVEKIT_WS_URL;
       console.log('Connecting to LiveKit:', { wsUrl, tokenLength: token.length });
@@ -1237,8 +1232,12 @@ function App() {
         participantsMap.set(participant.identity, participant);
         
         // Initialize states
-        // Get initial mute state from LiveKit
-        const isMuted = !participant.isMicrophoneEnabled;
+        // Determine initial mute state:
+        // - If isMicrophoneEnabled is explicitly false, participant is muted
+        // - Otherwise, default to unmuted (microphone is enabled by default)
+        const isMuted = participant.isMicrophoneEnabled === false || 
+                        (participant.audioTrackPublications.length > 0 && 
+                         participant.audioTrackPublications.every(pub => pub.isMuted));
         setVolumes(prev => {
           const newVolumes = new Map(prev);
           newVolumes.set(participant.identity, isMuted ? 0 : 100);
@@ -1314,8 +1313,13 @@ function App() {
       });
       setParticipants(participantsMap);
 
-      // Enable microphone only (camera disabled by default)
-      await newRoom.localParticipant.setMicrophoneEnabled(true);
+      // Microphone is enabled by default in LiveKit
+      // If user wants to join with muted microphone, they can toggle mute immediately after connecting
+      // Camera is disabled by default (not enabled here)
+      
+      // Check initial mute state from LiveKit (in case user had it disabled before)
+      const initialMuted = !newRoom.localParticipant.isMicrophoneEnabled;
+      setIsMuted(initialMuted);
     } catch (error) {
       console.error('Error joining room:', error);
       alert('Failed to join room: ' + error.message);
