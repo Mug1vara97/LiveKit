@@ -20,6 +20,8 @@ async function generateToken(roomName, participantName, identity) {
         canPublish: true,
         canSubscribe: true,
         canPublishData: true,
+        // Explicitly allow publishing audio and video tracks
+        canPublishSources: ['camera', 'microphone', 'screen_share'],
     });
 
     // toJwt() returns a Promise in SDK v2.x+

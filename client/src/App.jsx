@@ -809,9 +809,11 @@ function App() {
       });
       
       // Initialize states for new participant
+      // Get initial mute state from LiveKit
+      const isMuted = !participant.isMicrophoneEnabled();
       setVolumes(prev => {
         const newVolumes = new Map(prev);
-        newVolumes.set(participant.identity, 100);
+        newVolumes.set(participant.identity, isMuted ? 0 : 100);
         return newVolumes;
       });
       
@@ -829,8 +831,35 @@ function App() {
       
       setIndividualMutedPeers(prev => {
         const newMap = new Map(prev);
-        newMap.set(participant.identity, false);
+        newMap.set(participant.identity, isMuted);
         return newMap;
+      });
+      
+      // Listen for microphone state changes from LiveKit
+      // This ensures all participants see mute state changes in real-time
+      participant.on('isMicrophoneEnabledChanged', (enabled) => {
+        const participantMuted = !enabled;
+        console.log('Participant microphone state changed:', participant.identity, 'muted:', participantMuted);
+        
+        setIndividualMutedPeers(prev => {
+          const newMap = new Map(prev);
+          newMap.set(participant.identity, participantMuted);
+          return newMap;
+        });
+        
+        setVolumes(prev => {
+          const newVolumes = new Map(prev);
+          newVolumes.set(participant.identity, participantMuted ? 0 : 100);
+          return newVolumes;
+        });
+        
+        if (participantMuted) {
+          setSpeakingStates(prev => {
+            const newStates = new Map(prev);
+            newStates.set(participant.identity, false);
+            return newStates;
+          });
+        }
       });
       
       // Subscribe to all published tracks of the new participant immediately
@@ -1069,18 +1098,90 @@ function App() {
       }
     };
 
+    // Handle TrackPublished event at room level
+    // This is triggered when ANY participant (including local) publishes a new track
+    const handleTrackPublished = (publication, participant) => {
+      console.log('Track published at room level:', publication.kind, 'by', participant.identity);
+      
+      // Only handle remote participants' tracks (local tracks are handled separately)
+      if (participant !== room.localParticipant) {
+        if ((publication.kind === 'audio' || publication.kind === 'video') && publication.trackSid) {
+          // Explicitly subscribe to the newly published track
+          if (publication.setSubscribed) {
+            publication.setSubscribed(true);
+            console.log('Subscribing to newly published track at room level:', publication.kind, publication.trackSid, 'from', participant.identity);
+          } else {
+            console.log('Track will be auto-subscribed at room level:', publication.kind, publication.trackSid);
+          }
+        }
+      }
+    };
+
+    // Handle TrackMuted and TrackUnmuted events to sync mute state across all participants
+    const handleTrackMuted = (publication, participant) => {
+      // Only handle remote participants (local is handled separately)
+      if (participant !== room.localParticipant && publication.kind === 'audio') {
+        console.log('Track muted:', participant.identity, publication.trackName);
+        const isMuted = true;
+        
+        setIndividualMutedPeers(prev => {
+          const newMap = new Map(prev);
+          newMap.set(participant.identity, isMuted);
+          return newMap;
+        });
+        
+        setVolumes(prev => {
+          const newVolumes = new Map(prev);
+          newVolumes.set(participant.identity, 0);
+          return newVolumes;
+        });
+        
+        setSpeakingStates(prev => {
+          const newStates = new Map(prev);
+          newStates.set(participant.identity, false);
+          return newStates;
+        });
+      }
+    };
+
+    const handleTrackUnmuted = (publication, participant) => {
+      // Only handle remote participants (local is handled separately)
+      if (participant !== room.localParticipant && publication.kind === 'audio') {
+        console.log('Track unmuted:', participant.identity, publication.trackName);
+        const isMuted = false;
+        
+        setIndividualMutedPeers(prev => {
+          const newMap = new Map(prev);
+          newMap.set(participant.identity, isMuted);
+          return newMap;
+        });
+        
+        setVolumes(prev => {
+          const newVolumes = new Map(prev);
+          newVolumes.set(participant.identity, 100);
+          return newVolumes;
+        });
+      }
+    };
+
     room.on(RoomEvent.ParticipantConnected, handleParticipantConnected);
     room.on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+    room.on(RoomEvent.TrackPublished, handleTrackPublished);
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
     room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+    room.on(RoomEvent.TrackMuted, handleTrackMuted);
+    room.on(RoomEvent.TrackUnmuted, handleTrackUnmuted);
     room.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
     room.on(RoomEvent.LocalTrackUnpublished, handleLocalTrackUnpublished);
 
     return () => {
       room.off(RoomEvent.ParticipantConnected, handleParticipantConnected);
       room.off(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+      room.off(RoomEvent.TrackPublished, handleTrackPublished);
       room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
       room.off(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+      room.off(RoomEvent.TrackMuted, handleTrackMuted);
+      room.off(RoomEvent.TrackUnmuted, handleTrackUnmuted);
       room.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
       room.off(RoomEvent.LocalTrackUnpublished, handleLocalTrackUnpublished);
     };
@@ -1160,9 +1261,11 @@ function App() {
         participantsMap.set(participant.identity, participant);
         
         // Initialize states
+        // Get initial mute state from LiveKit
+        const isMuted = !participant.isMicrophoneEnabled();
         setVolumes(prev => {
           const newVolumes = new Map(prev);
-          newVolumes.set(participant.identity, 100);
+          newVolumes.set(participant.identity, isMuted ? 0 : 100);
           return newVolumes;
         });
         
@@ -1180,8 +1283,35 @@ function App() {
         
         setIndividualMutedPeers(prev => {
           const newMap = new Map(prev);
-          newMap.set(participant.identity, false);
+          newMap.set(participant.identity, isMuted);
           return newMap;
+        });
+        
+        // Listen for microphone state changes from LiveKit
+        // This ensures all participants see mute state changes in real-time
+        participant.on('isMicrophoneEnabledChanged', (enabled) => {
+          const participantMuted = !enabled;
+          console.log('Existing participant microphone state changed:', participant.identity, 'muted:', participantMuted);
+          
+          setIndividualMutedPeers(prev => {
+            const newMap = new Map(prev);
+            newMap.set(participant.identity, participantMuted);
+            return newMap;
+          });
+          
+          setVolumes(prev => {
+            const newVolumes = new Map(prev);
+            newVolumes.set(participant.identity, participantMuted ? 0 : 100);
+            return newVolumes;
+          });
+          
+          if (participantMuted) {
+            setSpeakingStates(prev => {
+              const newStates = new Map(prev);
+              newStates.set(participant.identity, false);
+              return newStates;
+            });
+          }
         });
         
         // Subscribe to all published tracks of existing participants
@@ -1499,10 +1629,12 @@ function App() {
             const hasVideo = videoRefs.current.has(participant.identity);
             const videoStream = getParticipantStream(participant.identity);
             const isSpeaking = speakingStates.get(participant.identity) || false;
-            const isMutedPeer = participant.isMuted || false;
+            // Use individualMutedPeers which is updated via LiveKit TrackMuted/TrackUnmuted events
+            // This ensures all participants see mute state changes in real-time
+            const isMutedPeer = individualMutedPeers.get(participant.identity) ?? !participant.isMicrophoneEnabled();
             const isAudioEnabledPeer = audioStates.get(participant.identity) !== false;
             const volume = volumes.get(participant.identity) || 100;
-            const isAudioMuted = individualMutedPeers.get(participant.identity) || false;
+            const isAudioMuted = isMutedPeer;
             
             return (
               <Box 
