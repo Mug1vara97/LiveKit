@@ -38,7 +38,8 @@ const io = new Server(server, {
 });
 
 // LiveKit configuration
-const LIVEKIT_URL = process.env.LIVEKIT_URL || 'ws://localhost:7880';
+// When LiveKit uses network_mode: host, connect via host.docker.internal from container
+const LIVEKIT_URL = process.env.LIVEKIT_URL || 'ws://host.docker.internal:7880';
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || 'devkey';
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || 'secret';
 

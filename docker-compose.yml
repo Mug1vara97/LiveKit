@@ -3,18 +3,12 @@ version: '3.8'
 services:
   livekit:
     image: livekit/livekit-server:latest
-    ports:
-      - "7880:7880"
-      - "7881:7881"
-      - "50000-50100:50000-50100/udp"
-      - "50000-50100:50000-50100/tcp"
+    network_mode: host
     environment:
       LIVEKIT_KEYS: "devkey: this_is_a_very_long_secret_key_for_livekit_server_at_least_32_chars"
       LIVEKIT_CONFIG_FILE: /etc/livekit.yaml
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
-    networks:
-      - app-network
     restart: unless-stopped
 
   server:
@@ -26,10 +20,12 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - LIVEKIT_URL=ws://livekit:7880
+      - LIVEKIT_URL=ws://host.docker.internal:7880
       - LIVEKIT_EXTERNAL_URL=wss://whithin.ru
       - LIVEKIT_API_KEY=devkey
       - LIVEKIT_API_SECRET=this_is_a_very_long_secret_key_for_livekit_server_at_least_32_chars
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - livekit
     networks:
