@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LiveKit Voice</string>
+    <string name="join_room">Join Room</string>
+    <string name="room_name">Room Name</string>
+    <string name="your_name">Your Name</string>
+    <string name="leave">Leave</string>
+    <string name="mute">Mute</string>
+    <string name="unmute">Unmute</string>
+    <string name="camera_on">Camera On</string>
+    <string name="camera_off">Camera Off</string>
+    <string name="screen_share">Share Screen</string>
+    <string name="stop_screen_share">Stop Sharing</string>
+    <string name="audio_enabled">Audio Enabled</string>
+    <string name="audio_disabled">Audio Disabled</string>
+    <string name="permission_required">Camera and microphone permissions are required</string>
+    <string name="permission_denied">Permissions are required to use voice chat</string>
+    <string name="error_joining_room">Failed to join room</string>
+    <string name="error_connection">Connection error</string>
+</resources>

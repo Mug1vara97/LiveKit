@@ -833,11 +833,50 @@ function App() {
         return newMap;
       });
       
-      // Subscribe to all published tracks of the new participant
+      // Subscribe to all published tracks of the new participant immediately
+      // This ensures all existing participants can see/hear the new participant
       participant.trackPublications.forEach((publication) => {
-        if ((publication.kind === 'audio' || publication.kind === 'video') && !publication.isSubscribed && publication.trackSid) {
+        if (publication.kind === 'audio' || publication.kind === 'video') {
+          if (publication.isSubscribed && publication.track) {
+            // Track is already subscribed, handle it immediately
+            const track = publication.track;
+            console.log('New participant has subscribed track:', publication.kind, participant.identity);
+            
+            if (track.kind === 'audio') {
+              const element = document.createElement('audio');
+              element.autoplay = true;
+              audioRefs.current.set(participant.identity, element);
+              element.srcObject = new MediaStream([track.mediaStreamTrack]);
+              console.log('Attached new participant audio track for:', participant.identity);
+              
+              // Setup audio analysis
+              setupAudioAnalysis(participant.identity, element);
+            } else if (track.kind === 'video') {
+              // Handle video track immediately
+              const element = document.createElement('video');
+              element.autoplay = true;
+              element.playsInline = true;
+              videoRefs.current.set(participant.identity, element);
+              const container = document.getElementById(`video-${participant.identity}`);
+              if (container) {
+                container.appendChild(element);
+                element.srcObject = new MediaStream([track.mediaStreamTrack]);
+                console.log('Attached new participant video track for:', participant.identity);
+              }
+            }
+          } else if (publication.trackSid && !publication.isSubscribed) {
+            // Explicitly subscribe to the track
+            participant.setSubscribed(publication.trackSid, true);
+            console.log('Subscribing to new participant track:', publication.kind, publication.trackSid);
+          }
+        }
+      });
+      
+      // Also subscribe to tracks that may be published later (e.g., after microphone/camera is enabled)
+      participant.on('trackPublished', (publication) => {
+        if ((publication.kind === 'audio' || publication.kind === 'video') && publication.trackSid) {
           participant.setSubscribed(publication.trackSid, true);
-          console.log('Subscribing to new participant track:', publication.kind, publication.trackSid);
+          console.log('Subscribing to newly published track:', publication.kind, publication.trackSid);
         }
       });
     };
@@ -1134,6 +1173,7 @@ function App() {
         });
         
         // Subscribe to all published tracks of existing participants
+        // This ensures new participants can see/hear all existing participants
         participant.trackPublications.forEach((publication) => {
           if (publication.kind === 'audio' || publication.kind === 'video') {
             // If track is already subscribed, handle it immediately
@@ -1141,8 +1181,8 @@ function App() {
               const track = publication.track;
               console.log('Existing participant has subscribed track:', publication.kind, participant.identity);
               
-              // Attach audio track immediately
               if (track.kind === 'audio') {
+                // Attach audio track immediately
                 const element = document.createElement('audio');
                 element.autoplay = true;
                 audioRefs.current.set(participant.identity, element);
@@ -1151,9 +1191,21 @@ function App() {
                 
                 // Setup audio analysis
                 setupAudioAnalysis(participant.identity, element);
+              } else if (track.kind === 'video') {
+                // Attach video track immediately
+                const element = document.createElement('video');
+                element.autoplay = true;
+                element.playsInline = true;
+                videoRefs.current.set(participant.identity, element);
+                const container = document.getElementById(`video-${participant.identity}`);
+                if (container) {
+                  container.appendChild(element);
+                  element.srcObject = new MediaStream([track.mediaStreamTrack]);
+                  console.log('Attached existing video track for:', participant.identity);
+                }
               }
-            } else if (publication.trackSid) {
-              // Subscribe to the track if not already subscribed
+            } else if (publication.trackSid && !publication.isSubscribed) {
+              // Explicitly subscribe to the track if not already subscribed
               participant.setSubscribed(publication.trackSid, true);
               console.log('Subscribing to existing track:', publication.kind, publication.trackSid);
             }
@@ -1162,8 +1214,8 @@ function App() {
       });
       setParticipants(participantsMap);
 
-      // Enable camera and microphone
-      await newRoom.localParticipant.enableCameraAndMicrophone();
+      // Enable microphone only (camera disabled by default)
+      await newRoom.localParticipant.setMicrophoneEnabled(true);
     } catch (error) {
       console.error('Error joining room:', error);
       alert('Failed to join room: ' + error.message);
