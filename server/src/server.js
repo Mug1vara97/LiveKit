@@ -74,8 +74,8 @@ async function generateToken(roomName, participantName, identity) {
             canPublish: true,
             canSubscribe: true,
             canPublishData: true,
-            // Explicitly allow publishing audio and video tracks
-            canPublishSources: ['camera', 'microphone', 'screen_share'],
+            // canPublish: true already allows all track sources, but we can explicitly specify if needed
+            // canPublishSources: [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE],
         });
 
         // toJwt() returns a Promise in SDK v2.x+
