@@ -513,18 +513,16 @@ function App() {
   const toggleMute = useCallback(async () => {
     if (!room) return;
 
-    const audioTrack = room.localParticipant.audioTrackPublications.values().next().value;
-    if (audioTrack) {
-      if (isMuted) {
-        await room.localParticipant.setMicrophoneEnabled(true);
-      } else {
-        await room.localParticipant.setMicrophoneEnabled(false);
-      }
-      setIsMuted(!isMuted);
+    try {
+      const newMutedState = !isMuted;
+      await room.localParticipant.setMicrophoneEnabled(!newMutedState);
+      setIsMuted(newMutedState);
       
       if (socket) {
-        socket.emit('muteState', { isMuted: !isMuted });
+        socket.emit('muteState', { isMuted: newMutedState });
       }
+    } catch (error) {
+      console.error('Error toggling mute:', error);
     }
   }, [room, isMuted, socket]);
 
@@ -719,7 +717,7 @@ function App() {
                 sx={styles.videoItem}
                 id={`video-container-${participant.identity}`}
               >
-                {hasVideo && videoElement ? (
+                {hasVideo ? (
                   <Box
                     id={`video-${participant.identity}`}
                     sx={{
