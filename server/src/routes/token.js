@@ -37,8 +37,9 @@ router.post('/token', (req, res) => {
         const token = generateToken(roomId, name, req.body.identity || name);
 
         // Return external WebSocket URL for client (through nginx proxy)
-        // Internal URL is ws://livekit:7880, external is wss://whithin.ru/rtc
-        const wsUrl = process.env.LIVEKIT_EXTERNAL_URL || 'wss://whithin.ru/rtc';
+        // Internal URL is ws://livekit:7880, external is wss://whithin.ru
+        // Note: LiveKit client will add /rtc path automatically
+        const wsUrl = process.env.LIVEKIT_EXTERNAL_URL || 'wss://whithin.ru';
         
         res.json({
             token,

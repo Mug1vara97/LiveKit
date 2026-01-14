@@ -21,7 +21,7 @@ rtc:
       password: test123
 
 keys:
-  devkey: secret
+  devkey: this_is_a_very_long_secret_key_for_livekit_server_at_least_32_chars
 
 development: true
 

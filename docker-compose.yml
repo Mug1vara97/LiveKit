@@ -9,7 +9,7 @@ services:
       - "50000-50100:50000-50100/udp"
       - "50000-50100:50000-50100/tcp"
     environment:
-      LIVEKIT_KEYS: "devkey: secret"
+      LIVEKIT_KEYS: "devkey: this_is_a_very_long_secret_key_for_livekit_server_at_least_32_chars"
       LIVEKIT_CONFIG_FILE: /etc/livekit.yaml
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
@@ -27,9 +27,9 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - LIVEKIT_URL=ws://livekit:7880
-      - LIVEKIT_EXTERNAL_URL=wss://whithin.ru/rtc
+      - LIVEKIT_EXTERNAL_URL=wss://whithin.ru
       - LIVEKIT_API_KEY=devkey
-      - LIVEKIT_API_SECRET=secret
+      - LIVEKIT_API_SECRET=this_is_a_very_long_secret_key_for_livekit_server_at_least_32_chars
     depends_on:
       - livekit
     networks:

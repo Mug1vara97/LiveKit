@@ -30,7 +30,7 @@ import { io } from 'socket.io-client';
 import './App.css';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://whithin.ru';
-const LIVEKIT_WS_URL = import.meta.env.VITE_LIVEKIT_WS_URL || 'wss://whithin.ru/rtc';
+const LIVEKIT_WS_URL = import.meta.env.VITE_LIVEKIT_WS_URL || 'wss://whithin.ru';
 
 // STUN/TURN серверы
 const ICE_SERVERS = [
@@ -372,11 +372,17 @@ function App() {
 
       const { token, url, existingPeers } = response;
 
+      // Ensure token is a string
+      if (!token || typeof token !== 'string') {
+        throw new Error('Invalid token received from server');
+      }
+
       // Create LiveKit room with STUN/TURN configuration
       const roomOptions = getRoomOptions();
       const newRoom = new Room(roomOptions);
       // Use the WebSocket URL from server or fallback to default
       const wsUrl = url || LIVEKIT_WS_URL;
+      console.log('Connecting to LiveKit:', { wsUrl, tokenLength: token.length });
       await newRoom.connect(wsUrl, token);
 
       setRoom(newRoom);
