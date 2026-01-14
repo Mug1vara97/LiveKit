@@ -11,3 +11,5 @@ ssl/
 *.key
 *.crt
 mobile/
+./mobile
+mobile/

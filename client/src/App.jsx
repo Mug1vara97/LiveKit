@@ -866,8 +866,14 @@ function App() {
             }
           } else if (publication.trackSid && !publication.isSubscribed) {
             // Explicitly subscribe to the track
-            participant.setSubscribed(publication.trackSid, true);
-            console.log('Subscribing to new participant track:', publication.kind, publication.trackSid);
+            // In LiveKit JS SDK, subscription is usually automatic, but we can set it explicitly
+            if (publication.setSubscribed) {
+              publication.setSubscribed(true);
+              console.log('Subscribing to new participant track:', publication.kind, publication.trackSid);
+            } else {
+              // If setSubscribed is not available, LiveKit will auto-subscribe
+              console.log('Track will be auto-subscribed:', publication.kind, publication.trackSid);
+            }
           }
         }
       });
@@ -875,8 +881,14 @@ function App() {
       // Also subscribe to tracks that may be published later (e.g., after microphone/camera is enabled)
       participant.on('trackPublished', (publication) => {
         if ((publication.kind === 'audio' || publication.kind === 'video') && publication.trackSid) {
-          participant.setSubscribed(publication.trackSid, true);
-          console.log('Subscribing to newly published track:', publication.kind, publication.trackSid);
+          // In LiveKit JS SDK, subscription is usually automatic, but we can set it explicitly
+          if (publication.setSubscribed) {
+            publication.setSubscribed(true);
+            console.log('Subscribing to newly published track:', publication.kind, publication.trackSid);
+          } else {
+            // If setSubscribed is not available, LiveKit will auto-subscribe
+            console.log('Track will be auto-subscribed:', publication.kind, publication.trackSid);
+          }
         }
       });
     };
@@ -1206,8 +1218,14 @@ function App() {
               }
             } else if (publication.trackSid && !publication.isSubscribed) {
               // Explicitly subscribe to the track if not already subscribed
-              participant.setSubscribed(publication.trackSid, true);
-              console.log('Subscribing to existing track:', publication.kind, publication.trackSid);
+              // In LiveKit JS SDK, subscription is usually automatic, but we can set it explicitly
+              if (publication.setSubscribed) {
+                publication.setSubscribed(true);
+                console.log('Subscribing to existing track:', publication.kind, publication.trackSid);
+              } else {
+                // If setSubscribed is not available, LiveKit will auto-subscribe
+                console.log('Track will be auto-subscribed:', publication.kind, publication.trackSid);
+              }
             }
           }
         });
