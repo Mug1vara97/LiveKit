@@ -810,7 +810,7 @@ function App() {
       
       // Initialize states for new participant
       // Get initial mute state from LiveKit
-      const isMuted = !participant.isMicrophoneEnabled();
+      const isMuted = !participant.isMicrophoneEnabled;
       setVolumes(prev => {
         const newVolumes = new Map(prev);
         newVolumes.set(participant.identity, isMuted ? 0 : 100);
@@ -835,32 +835,8 @@ function App() {
         return newMap;
       });
       
-      // Listen for microphone state changes from LiveKit
-      // This ensures all participants see mute state changes in real-time
-      participant.on('isMicrophoneEnabledChanged', (enabled) => {
-        const participantMuted = !enabled;
-        console.log('Participant microphone state changed:', participant.identity, 'muted:', participantMuted);
-        
-        setIndividualMutedPeers(prev => {
-          const newMap = new Map(prev);
-          newMap.set(participant.identity, participantMuted);
-          return newMap;
-        });
-        
-        setVolumes(prev => {
-          const newVolumes = new Map(prev);
-          newVolumes.set(participant.identity, participantMuted ? 0 : 100);
-          return newVolumes;
-        });
-        
-        if (participantMuted) {
-          setSpeakingStates(prev => {
-            const newStates = new Map(prev);
-            newStates.set(participant.identity, false);
-            return newStates;
-          });
-        }
-      });
+      // Note: Microphone state changes are handled via TrackMuted/TrackUnmuted events
+      // at the room level, so we don't need a separate listener here
       
       // Subscribe to all published tracks of the new participant immediately
       // This ensures all existing participants can see/hear the new participant
@@ -1262,7 +1238,7 @@ function App() {
         
         // Initialize states
         // Get initial mute state from LiveKit
-        const isMuted = !participant.isMicrophoneEnabled();
+        const isMuted = !participant.isMicrophoneEnabled;
         setVolumes(prev => {
           const newVolumes = new Map(prev);
           newVolumes.set(participant.identity, isMuted ? 0 : 100);
@@ -1287,32 +1263,8 @@ function App() {
           return newMap;
         });
         
-        // Listen for microphone state changes from LiveKit
-        // This ensures all participants see mute state changes in real-time
-        participant.on('isMicrophoneEnabledChanged', (enabled) => {
-          const participantMuted = !enabled;
-          console.log('Existing participant microphone state changed:', participant.identity, 'muted:', participantMuted);
-          
-          setIndividualMutedPeers(prev => {
-            const newMap = new Map(prev);
-            newMap.set(participant.identity, participantMuted);
-            return newMap;
-          });
-          
-          setVolumes(prev => {
-            const newVolumes = new Map(prev);
-            newVolumes.set(participant.identity, participantMuted ? 0 : 100);
-            return newVolumes;
-          });
-          
-          if (participantMuted) {
-            setSpeakingStates(prev => {
-              const newStates = new Map(prev);
-              newStates.set(participant.identity, false);
-              return newStates;
-            });
-          }
-        });
+        // Note: Microphone state changes are handled via TrackMuted/TrackUnmuted events
+        // at the room level, so we don't need a separate listener here
         
         // Subscribe to all published tracks of existing participants
         // This ensures new participants can see/hear all existing participants
@@ -1631,7 +1583,7 @@ function App() {
             const isSpeaking = speakingStates.get(participant.identity) || false;
             // Use individualMutedPeers which is updated via LiveKit TrackMuted/TrackUnmuted events
             // This ensures all participants see mute state changes in real-time
-            const isMutedPeer = individualMutedPeers.get(participant.identity) ?? !participant.isMicrophoneEnabled();
+            const isMutedPeer = individualMutedPeers.get(participant.identity) ?? !participant.isMicrophoneEnabled;
             const isAudioEnabledPeer = audioStates.get(participant.identity) !== false;
             const volume = volumes.get(participant.identity) || 100;
             const isAudioMuted = isMutedPeer;
